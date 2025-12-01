@@ -1,0 +1,38 @@
+flowchart LR
+ subgraph DECISION["关键点：流量感知自适应窗口"]
+        D1["输入: QPS or 集群负载 or 优先级参数"]
+        E["计算：潜在优化收益 vs 延迟损耗"]
+        C["时间窗口缓冲区"]
+        F["触发批次出队"]
+  end
+ subgraph STAGE1["阶段 1：查询捕获与窗口管理"]
+        B["阶段 1: 持续捕获与自适应缓冲"]
+        DECISION
+  end
+ subgraph STAGE2["阶段 2：信息结构化与转换"]
+        H["提取 Logical Plan"]
+        G["阶段 2: 信息提取与 IR 封装"]
+        I["收集运行时元数据"]
+        J["整理为结构化 Batch IR 字典"]
+  end
+ subgraph STAGE3["阶段 3：决策交接"]
+        L["发送 Batch IR 至 LLM 缓存优化决策器"]
+        K["阶段 3: 决策交接"]
+
+  end
+    A["实时查询流"] --> B
+    B --> C
+    D1 --> E
+    E -- 收益大于损耗（继续等待） --> C
+    E -- 收益小于损耗 或 触发超时 --> F
+    C -.-> D1
+    F --> G
+    G --> H
+    H --> I
+    I --> J
+    J --> K
+    K --> L
+
+    style F fill:#F44336,color:#fff
+    style J fill:#4CAF50,color:#fff
+    style L fill:#2196F3,color:#fff

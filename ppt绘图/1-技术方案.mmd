@@ -1,0 +1,72 @@
+---
+config:
+  look: classic
+  theme: base
+  layout: dagre
+---
+flowchart LR
+ subgraph U["用户查询层"]
+    direction LR
+        Q1["Query 1"]
+        Q2["Query 2"]
+        Q3["Query 3"]
+        QN["Query N"]
+  end
+
+ subgraph BATCH["1. 查询批处理协调器"]
+    direction TB
+        B1["1.时间窗口收集查询 (e.g: 100ms)"]
+        B2["2.识别查询间数据依赖"]
+        B3["3.提取执行计划特征"]
+        %% 强制顺序（不改变内容）
+        B1 --> B2 --> B3
+  end
+
+ subgraph DEC["2. LLM 缓存决策器"]
+    direction TB
+        D_IN["Input
+        1. 批次内所有查询的执行计划
+        2. 当前缓存状态      
+        3. 表统计信息 (大小...)"]
+        D_ANALYZE["LLM 分析 
+        1. 识别共享子表达式
+        2. 计算权衡缓存收益"]
+        D_OUT["Output
+        1. 查询重排如何根据数据依赖重排查询     
+        2. 将哪些有缓存收益的执行计划改写为插入cache算子版本
+        3. 更新缓存信息"]
+        %% 强制顺序
+        D_IN --> D_ANALYZE --> D_OUT
+  end
+
+ subgraph REWRITE["3. 执行计划改写器"]
+    direction TB
+        R1["1.根据llm决策注入自定义缓存算子"]
+        R2["2.根据llm决策替换子计划为缓存读取"]
+        R3["3.检查计划语义正确性"]
+        %% 强制顺序
+        R1 --> R2 --> R3
+  end
+
+ subgraph LLM_LAYER["LLM 驱动的智能缓存优化层"]
+    direction LR
+        BATCH
+        DEC
+        REWRITE
+  end
+
+    Q1 --> FE["Spark SQL 前端处理
+    Parser -> 
+    Analyzer -> 
+    Catalyst Optimizer"]
+    Q2 --> FE
+    Q3 --> FE
+    QN --> FE
+
+    FE --> LLM_LAYER
+    BATCH --> DEC
+    DEC --> REWRITE
+
+    LLM_LAYER --> RAPIDS["RAPIDS GPU 算子替换层
+    CPU 算子 -> GPU 算子"]
+    RAPIDS --> OUT["查询结果"]
